@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+
+# Base de données locale
+data/*.db
+data/*.sqlite
+*.db
+
+# Certificats (NE JAMAIS publier les clés privées !)
+certs/*.key
+certs/*.crt
+certs/*.csr
+certs/*.srl
+
+# Secrets et config locale
+.env
+secrets.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
