@@ -1,100 +1,211 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart House E203</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:20px; }
-  h1 { text-align:center; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:15px; margin-bottom:20px; }
-  .card { background:#1e293b; padding:20px; border-radius:12px; text-align:center; }
-  .card h3 { margin:0 0 10px; font-size:13px; color:#94a3b8; text-transform:uppercase; }
-  .card p { font-size:26px; margin:0; font-weight:bold; }
-  .etat { display:flex; gap:15px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
-  .badge { padding:10px 20px; border-radius:8px; font-weight:bold; background:#334155; }
-  .badge.on { background:#16a34a; }
-  .badge.off { background:#475569; }
-  .badge.alarme.on { background:#dc2626; }
-  canvas { background:#1e293b; border-radius:12px; padding:10px; width:100% !important; }
-  @media (max-width:600px) { .card p { font-size:20px; } }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart House E203 — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { text-align: center; margin-top: 0; margin-bottom: 20px; }
+
+    .etat {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      background: #334155;
+      user-select: none;
+    }
+    .badge.on { background: #16a34a; }
+    .badge.off { background: #475569; }
+    .badge.alarme.on { background: #dc2626; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+    .card p { font-size: 26px; margin: 0; font-weight: bold; }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+    }
+    .chart-card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+    }
+    .chart-card h3 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: #e2e8f0;
+      text-align: center;
+    }
+    .chart-wrap { position: relative; height: 180px; width: 100%; }
+
+    .status-note {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .status-note.error { color: #f87171; }
+
+    @media (max-width: 600px) { .card p { font-size: 20px; } }
+  </style>
 </head>
 <body>
-<h1>🏠 Smart House — Équipe E203</h1>
+  <h1>🏠 Smart House — Équipe E203</h1>
 
-<div class="etat">
-  <div class="badge" id="badgeAlarme">🔔 Alarme : —</div>
-  <div class="badge" id="badgeVent">🌬 Ventilation : —</div>
-</div>
+  <div class="etat">
+    <div class="badge" id="badgeAlarme">🔔 Alarme : —</div>
+    <div class="badge" id="badgeVent">🌬 Ventilation : —</div>
+  </div>
 
-<div class="grid">
-  <div class="card"><h3>🌡 Température</h3><p id="temp">--</p></div>
-  <div class="card"><h3>💧 Humidité</h3><p id="hum">--</p></div>
-  <div class="card"><h3>📊 Pression</h3><p id="pres">--</p></div>
-  <div class="card"><h3>🌬 Qualité air</h3><p id="air">--</p></div>
-  <div class="card"><h3>📏 Distance</h3><p id="dist">--</p></div>
-</div>
+  <div class="grid">
+    <div class="card"><h3>🌡 Température</h3><p id="temp">--</p></div>
+    <div class="card"><h3>💧 Humidité</h3><p id="hum">--</p></div>
+    <div class="card"><h3>📊 Pression</h3><p id="pres">--</p></div>
+    <div class="card"><h3>🌬 Qualité air</h3><p id="air">--</p></div>
+    <div class="card"><h3>📏 Distance</h3><p id="dist">--</p></div>
+  </div>
 
-<canvas id="chart" height="90"></canvas>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>🌡 Température (°C)</h3>
+      <div class="chart-wrap"><canvas id="chartTemp"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>💧 Humidité (%)</h3>
+      <div class="chart-wrap"><canvas id="chartHum"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>📏 Distance (cm)</h3>
+      <div class="chart-wrap"><canvas id="chartDist"></canvas></div>
+    </div>
+  </div>
 
-<script>
-const ctx = document.getElementById('chart');
-const chart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      { label:'Température (°C)', data:[], borderColor:'#38bdf8', tension:0.3, yAxisID:'y' },
-      { label:'Humidité (%)', data:[], borderColor:'#22c55e', tension:0.3, yAxisID:'y' },
-      { label:'Distance (cm)', data:[], borderColor:'#f59e0b', tension:0.3, yAxisID:'y1' }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { labels: { color:'#e2e8f0' } } },
-    scales: {
-      x: { ticks: { color:'#94a3b8' } },
-      y: { ticks: { color:'#94a3b8' }, position:'left' },
-      y1: { ticks: { color:'#94a3b8' }, position:'right', grid:{ drawOnChartArea:false } }
+  <p class="status-note" id="statusNote">Connexion aux données réelles (MQTT + SQLite)…</p>
+
+  <script>
+    function creerGraphique(id, label, couleur) {
+      return new Chart(document.getElementById(id), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: label,
+            data: [],
+            borderColor: couleur,
+            backgroundColor: couleur + '22',
+            fill: false,
+            tension: 0.3,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              ticks: { color: '#94a3b8', maxTicksLimit: 5, font: { size: 10 } },
+              grid: { color: 'rgba(148, 163, 184, 0.1)' }
+            },
+            y: {
+              ticks: { color: '#94a3b8', font: { size: 10 } },
+              grid: { color: 'rgba(148, 163, 184, 0.1)' }
+            }
+          }
+        }
+      });
     }
-  }
-});
 
-function setBadge(el, label, on) {
-  el.textContent = label + ' : ' + (on ? 'ON' : 'OFF');
-  el.className = 'badge ' + (on ? 'on' : 'off');
-}
+    const chartTemp = creerGraphique('chartTemp', 'Température (°C)', '#38bdf8');
+    const chartHum  = creerGraphique('chartHum',  'Humidité (%)',     '#22c55e');
+    const chartDist = creerGraphique('chartDist', 'Distance (cm)',    '#f59e0b');
 
-async function maj() {
-  try {
-    const m = await (await fetch('/api/mesures')).json();
-    if (m.temperature !== undefined) {
-      document.getElementById('temp').textContent = m.temperature.toFixed(2) + ' °C';
-      document.getElementById('hum').textContent  = m.humidite.toFixed(2) + ' %';
-      document.getElementById('pres').textContent = m.pression.toFixed(1) + ' hPa';
-      document.getElementById('air').textContent  = m.qualite_air.toFixed(1);
-      document.getElementById('dist').textContent = m.distance.toFixed(1) + ' cm';
+    function setBadge(el, label, on, estAlarme = false) {
+      el.textContent = label + ' : ' + (on ? 'ON' : 'OFF');
+      el.className = 'badge ' + (on ? 'on' : 'off');
+      if (estAlarme && on) el.classList.add('alarme');
     }
 
-    const e = await (await fetch('/api/etat')).json();
-    setBadge(document.getElementById('badgeAlarme'), '🔔 Alarme', e.etat.alarme);
-    setBadge(document.getElementById('badgeVent'),   '🌬 Ventilation', e.etat.ventilation);
-    if (e.etat.alarme) document.getElementById('badgeAlarme').classList.add('alarme');
+    async function maj() {
+      const note = document.getElementById('statusNote');
+      try {
+        // 1. Dernière mesure
+        const m = await (await fetch('/api/mesures')).json();
+        if (m.temperature !== undefined) {
+          document.getElementById('temp').textContent = m.temperature.toFixed(2) + ' °C';
+          document.getElementById('hum').textContent  = m.humidite.toFixed(2) + ' %';
+          document.getElementById('pres').textContent = m.pression.toFixed(1) + ' hPa';
+          document.getElementById('air').textContent  = m.qualite_air.toFixed(1);
+          document.getElementById('dist').textContent = m.distance.toFixed(1) + ' cm';
+        }
 
-    const h = await (await fetch('/api/historique')).json();
-    chart.data.labels = h.map(x => new Date(x.timestamp*1000).toLocaleTimeString());
-    chart.data.datasets[0].data = h.map(x => x.temperature);
-    chart.data.datasets[1].data = h.map(x => x.humidite);
-    chart.data.datasets[2].data = h.map(x => x.distance);
-    chart.update();
-  } catch (err) { console.error(err); }
-}
+        // 2. État alarme / ventilation
+        const e = await (await fetch('/api/etat')).json();
+        setBadge(document.getElementById('badgeAlarme'), '🔔 Alarme', e.etat.alarme, true);
+        setBadge(document.getElementById('badgeVent'),   '🌬 Ventilation', e.etat.ventilation, false);
 
-setInterval(maj, 5000);
-maj();
-</script>
+        // 3. Historique
+        const h = await (await fetch('/api/historique')).json();
+        const labels = h.map(x => new Date(x.timestamp * 1000).toLocaleTimeString('fr-FR'));
+
+        chartTemp.data.labels = labels;
+        chartTemp.data.datasets[0].data = h.map(x => Number(x.temperature.toFixed(2)));
+        chartTemp.update();
+
+        chartHum.data.labels = labels;
+        chartHum.data.datasets[0].data = h.map(x => Number(x.humidite.toFixed(2)));
+        chartHum.update();
+
+        chartDist.data.labels = labels;
+        chartDist.data.datasets[0].data = h.map(x => Number(x.distance.toFixed(1)));
+        chartDist.update();
+
+        note.textContent = 'Données réelles — actualisation toutes les 5 s.';
+        note.classList.remove('error');
+      } catch (err) {
+        console.error(err);
+        note.textContent = '⚠️ Impossible de joindre le serveur Flask. Vérifie que app.py tourne.';
+        note.classList.add('error');
+      }
+    }
+
+    maj();
+    setInterval(maj, 5000);
+  </script>
 </body>
 </html>
