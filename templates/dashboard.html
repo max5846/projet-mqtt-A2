@@ -35,6 +35,50 @@
     .badge.off { background: #475569; }
     .badge.alarme.on { background: #dc2626; }
 
+    /* Carte seuils */
+    .seuils-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 15px 20px;
+      margin-bottom: 20px;
+    }
+    .seuils-card h3 { margin: 0 0 12px; font-size: 14px; color: #e2e8f0; }
+    .seuils-form {
+      display: flex;
+      gap: 15px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .seuils-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .seuils-form input {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 14px;
+      width: 140px;
+    }
+    .seuils-form button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .seuils-form button:hover { background: #0ea5e9; }
+    .seuils-note { margin: 10px 0 0; font-size: 12px; color: #22c55e; }
+    .seuils-note.error { color: #f87171; }
+
     /* Carte caméra */
     .cam-card {
       background: #1e293b;
@@ -122,6 +166,23 @@
   <div class="etat">
     <div class="badge" id="badgeAlarme">🔔 Alarme : —</div>
     <div class="badge" id="badgeVent">🌬 Ventilation : —</div>
+  </div>
+
+  <!-- Configuration des seuils -->
+  <div class="seuils-card">
+    <h3>⚙️ Configuration des seuils</h3>
+    <div class="seuils-form">
+      <label>
+        🌡 Température max (°C)
+        <input type="number" id="seuilTemp" step="0.1" min="0" max="50">
+      </label>
+      <label>
+        📏 Distance min (cm)
+        <input type="number" id="seuilDist" step="1" min="0" max="500">
+      </label>
+      <button id="btnSaveSeuils">💾 Enregistrer</button>
+    </div>
+    <p class="seuils-note" id="seuilsNote"></p>
   </div>
 
   <!-- Carte caméra -->
@@ -232,10 +293,43 @@
       camTime.textContent = 'Dernière image : ' + new Date().toLocaleTimeString('fr-FR');
     });
 
-    // Rafraîchir le flux caméra toutes les 2 secondes (force le navigateur à recharger)
     setInterval(() => {
       camStream.src = '/video_feed?t=' + Date.now();
     }, 2000);
+
+    // ---------- Seuils ----------
+    async function chargerSeuils() {
+      try {
+        const s = await (await fetch('/api/seuils')).json();
+        document.getElementById('seuilTemp').value = s.seuil_temp;
+        document.getElementById('seuilDist').value = s.seuil_distance;
+      } catch (err) { console.error(err); }
+    }
+
+    document.getElementById('btnSaveSeuils').addEventListener('click', async () => {
+      const note = document.getElementById('seuilsNote');
+      try {
+        const body = {
+          seuil_temp: parseFloat(document.getElementById('seuilTemp').value),
+          seuil_distance: parseFloat(document.getElementById('seuilDist').value)
+        };
+        const r = await fetch('/api/seuils', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const j = await r.json();
+        if (j.ok) {
+          note.textContent = '✅ Seuils enregistrés — pris en compte dans les 5 s.';
+          note.classList.remove('error');
+        }
+      } catch (err) {
+        note.textContent = '❌ Erreur lors de l’enregistrement.';
+        note.classList.add('error');
+      }
+    });
+
+    chargerSeuils();
 
     // ---------- Mise à jour des données ----------
     async function maj() {

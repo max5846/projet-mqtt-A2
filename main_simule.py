@@ -5,6 +5,7 @@ import json
 import sqlite3
 import ssl
 import paho.mqtt.client as mqtt
+import os
 
 import config
 from simulateur import generer_mesure
@@ -66,7 +67,17 @@ def main():
 
     try:
         while True:
+            # Relire les seuils (peuvent avoir été modifiés depuis le dashboard)
+            try:
+                with open(config.SEUILS_FILE, "r", encoding="utf-8") as f:
+                    seuils = json.load(f)
+                config.SEUIL_TEMP = seuils["seuil_temp"]
+                config.SEUIL_DISTANCE = seuils["seuil_distance"]
+            except Exception:
+                pass  # Garde les valeurs par défaut
+
             data = generer_mesure()
+            # ... le reste ne change pas
 
             # 1. Publication des mesures
             client.publish(config.MQTT_TOPIC_MESURES, json.dumps(data), qos=1)

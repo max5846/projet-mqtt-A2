@@ -8,9 +8,10 @@ import threading
 import time
 import urllib.request
 import zlib
+import os
 
 import paho.mqtt.client as mqtt
-from flask import Flask, Response, jsonify, render_template
+from flask import Flask, Response, jsonify, render_template, request
 
 import config
 
@@ -161,6 +162,32 @@ def video_feed():
     except Exception as e:
         print("Erreur caméra:", e)
         return "Caméra hors ligne", 503
+
+# ---------- Seuils ----------
+def lire_seuils():
+    try:
+        with open(config.SEUILS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"seuil_temp": config.SEUIL_TEMP, "seuil_distance": config.SEUIL_DISTANCE}
+
+
+def ecrire_seuils(seuils):
+    with open(config.SEUILS_FILE, "w", encoding="utf-8") as f:
+        json.dump(seuils, f, indent=2)
+
+
+@app.route("/api/seuils", methods=["GET", "POST"])
+def api_seuils():
+    if request.method == "POST":
+        data = request.get_json()
+        seuils = {
+            "seuil_temp": float(data.get("seuil_temp", config.SEUIL_TEMP)),
+            "seuil_distance": float(data.get("seuil_distance", config.SEUIL_DISTANCE)),
+        }
+        ecrire_seuils(seuils)
+        return jsonify({"ok": True, "seuils": seuils})
+    return jsonify(lire_seuils())
 
 
 # ---------- Main ----------
