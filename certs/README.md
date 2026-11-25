@@ -8,9 +8,19 @@ Les certificats ne sont \*\*pas\*\* versionnés (sécurité). Pour les regénér
 
 ```bash
 
-\# Depuis la racine du projet
+python certs/gen\_certs.py
 
-mkdir -p certs \&\& cd certs
+```
+
+
+
+Ou manuellement (si tu préfères) :
+
+
+
+```bash
+
+cd certs
 
 openssl genrsa -out ca.key 2048
 
@@ -29,4 +39,32 @@ openssl req -new -key client.key -out client.csr -subj "/CN=client-E203"
 openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out client.crt -days 3650
 
 rm -f \*.csr \*.srl
+
+```
+
+
+
+\## Vérification
+
+
+
+```bash
+
+openssl verify -CAfile certs/ca.crt certs/server.crt
+
+openssl verify -CAfile certs/ca.crt certs/client.crt
+
+```
+
+
+
+→ doit afficher `OK` deux fois.
+
+
+
+\## ⚠️ Sécurité
+
+
+
+Les fichiers `\*.key` ne doivent \*\*jamais\*\* être publiés sur GitHub. Voir `.gitignore` à la racine.
 
