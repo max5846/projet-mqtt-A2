@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart House E203</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:20px; }
+  h1 { text-align:center; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:15px; margin-bottom:20px; }
+  .card { background:#1e293b; padding:20px; border-radius:12px; text-align:center; }
+  .card h3 { margin:0 0 10px; font-size:13px; color:#94a3b8; text-transform:uppercase; }
+  .card p { font-size:26px; margin:0; font-weight:bold; }
+  .etat { display:flex; gap:15px; justify-content:center; margin-bottom:20px; flex-wrap:wrap; }
+  .badge { padding:10px 20px; border-radius:8px; font-weight:bold; background:#334155; }
+  .badge.on { background:#16a34a; }
+  .badge.off { background:#475569; }
+  .badge.alarme.on { background:#dc2626; }
+  canvas { background:#1e293b; border-radius:12px; padding:10px; width:100% !important; }
+  @media (max-width:600px) { .card p { font-size:20px; } }
+</style>
+</head>
+<body>
+<h1>🏠 Smart House — Équipe E203</h1>
+
+<div class="etat">
+  <div class="badge" id="badgeAlarme">🔔 Alarme : —</div>
+  <div class="badge" id="badgeVent">🌬 Ventilation : —</div>
+</div>
+
+<div class="grid">
+  <div class="card"><h3>🌡 Température</h3><p id="temp">--</p></div>
+  <div class="card"><h3>💧 Humidité</h3><p id="hum">--</p></div>
+  <div class="card"><h3>📊 Pression</h3><p id="pres">--</p></div>
+  <div class="card"><h3>🌬 Qualité air</h3><p id="air">--</p></div>
+  <div class="card"><h3>📏 Distance</h3><p id="dist">--</p></div>
+</div>
+
+<canvas id="chart" height="90"></canvas>
+
+<script>
+const ctx = document.getElementById('chart');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label:'Température (°C)', data:[], borderColor:'#38bdf8', tension:0.3, yAxisID:'y' },
+      { label:'Humidité (%)', data:[], borderColor:'#22c55e', tension:0.3, yAxisID:'y' },
+      { label:'Distance (cm)', data:[], borderColor:'#f59e0b', tension:0.3, yAxisID:'y1' }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color:'#e2e8f0' } } },
+    scales: {
+      x: { ticks: { color:'#94a3b8' } },
+      y: { ticks: { color:'#94a3b8' }, position:'left' },
+      y1: { ticks: { color:'#94a3b8' }, position:'right', grid:{ drawOnChartArea:false } }
+    }
+  }
+});
+
+function setBadge(el, label, on) {
+  el.textContent = label + ' : ' + (on ? 'ON' : 'OFF');
+  el.className = 'badge ' + (on ? 'on' : 'off');
+}
+
+async function maj() {
+  try {
+    const m = await (await fetch('/api/mesures')).json();
+    if (m.temperature !== undefined) {
+      document.getElementById('temp').textContent = m.temperature.toFixed(2) + ' °C';
+      document.getElementById('hum').textContent  = m.humidite.toFixed(2) + ' %';
+      document.getElementById('pres').textContent = m.pression.toFixed(1) + ' hPa';
+      document.getElementById('air').textContent  = m.qualite_air.toFixed(1);
+      document.getElementById('dist').textContent = m.distance.toFixed(1) + ' cm';
+    }
+
+    const e = await (await fetch('/api/etat')).json();
+    setBadge(document.getElementById('badgeAlarme'), '🔔 Alarme', e.etat.alarme);
+    setBadge(document.getElementById('badgeVent'),   '🌬 Ventilation', e.etat.ventilation);
+    if (e.etat.alarme) document.getElementById('badgeAlarme').classList.add('alarme');
+
+    const h = await (await fetch('/api/historique')).json();
+    chart.data.labels = h.map(x => new Date(x.timestamp*1000).toLocaleTimeString());
+    chart.data.datasets[0].data = h.map(x => x.temperature);
+    chart.data.datasets[1].data = h.map(x => x.humidite);
+    chart.data.datasets[2].data = h.map(x => x.distance);
+    chart.update();
+  } catch (err) { console.error(err); }
+}
+
+setInterval(maj, 5000);
+maj();
+</script>
+</body>
+</html>

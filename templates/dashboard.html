@@ -16,6 +16,7 @@
     }
     h1 { text-align: center; margin-top: 0; margin-bottom: 20px; }
 
+    /* Badges d'état */
     .etat {
       display: flex;
       gap: 15px;
@@ -34,6 +35,36 @@
     .badge.off { background: #475569; }
     .badge.alarme.on { background: #dc2626; }
 
+    /* Carte caméra */
+    .cam-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .cam-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .cam-header .rec { color: #ef4444; animation: blink 1.2s infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .cam-wrap { position: relative; }
+    .cam-error {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: 8px;
+      font-weight: bold;
+    }
+
+    /* Grille des 5 cartes de capteurs */
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -54,6 +85,7 @@
     }
     .card p { font-size: 26px; margin: 0; font-weight: bold; }
 
+    /* Grille des 3 graphiques séparés */
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -86,11 +118,30 @@
 <body>
   <h1>🏠 Smart House — Équipe E203</h1>
 
+  <!-- Badges d'état -->
   <div class="etat">
     <div class="badge" id="badgeAlarme">🔔 Alarme : —</div>
     <div class="badge" id="badgeVent">🌬 Ventilation : —</div>
   </div>
 
+  <!-- Carte caméra -->
+  <div class="cam-card">
+    <div class="cam-header">
+      <span>📹 CAM 01 — Entrée (Arducam / simulée)</span>
+      <span class="rec" id="camStatus">● LIVE</span>
+    </div>
+    <div class="cam-wrap">
+      <img id="camStream" src="/video_feed" alt="Flux caméra"
+           style="width:100%; max-height:360px; object-fit:cover; display:block; border-radius:8px;">
+      <div class="cam-error" id="camError" style="display:none;">
+        Caméra hors ligne (vérifier l'IP dans app.py).
+      </div>
+      <div class="cam-time" id="camTime"
+           style="font-size:12px; color:#94a3b8; text-align:right; padding-top:6px;"></div>
+    </div>
+  </div>
+
+  <!-- Cartes des valeurs instantanées -->
   <div class="grid">
     <div class="card"><h3>🌡 Température</h3><p id="temp">--</p></div>
     <div class="card"><h3>💧 Humidité</h3><p id="hum">--</p></div>
@@ -99,6 +150,7 @@
     <div class="card"><h3>📏 Distance</h3><p id="dist">--</p></div>
   </div>
 
+  <!-- 3 graphiques séparés -->
   <div class="charts-grid">
     <div class="chart-card">
       <h3>🌡 Température (°C)</h3>
@@ -117,6 +169,7 @@
   <p class="status-note" id="statusNote">Connexion aux données réelles (MQTT + SQLite)…</p>
 
   <script>
+    // ---------- Graphiques ----------
     function creerGraphique(id, label, couleur) {
       return new Chart(document.getElementById(id), {
         type: 'line',
@@ -155,12 +208,36 @@
     const chartHum  = creerGraphique('chartHum',  'Humidité (%)',     '#22c55e');
     const chartDist = creerGraphique('chartDist', 'Distance (cm)',    '#f59e0b');
 
+    // ---------- Badges ----------
     function setBadge(el, label, on, estAlarme = false) {
       el.textContent = label + ' : ' + (on ? 'ON' : 'OFF');
       el.className = 'badge ' + (on ? 'on' : 'off');
       if (estAlarme && on) el.classList.add('alarme');
     }
 
+    // ---------- Caméra ----------
+    const camStream = document.getElementById('camStream');
+    const camError  = document.getElementById('camError');
+    const camStatus = document.getElementById('camStatus');
+    const camTime   = document.getElementById('camTime');
+
+    camStream.addEventListener('error', () => {
+      camError.style.display = 'flex';
+      camStatus.textContent = '● OFFLINE';
+    });
+
+    camStream.addEventListener('load', () => {
+      camError.style.display = 'none';
+      camStatus.textContent = '● LIVE';
+      camTime.textContent = 'Dernière image : ' + new Date().toLocaleTimeString('fr-FR');
+    });
+
+    // Rafraîchir le flux caméra toutes les 2 secondes (force le navigateur à recharger)
+    setInterval(() => {
+      camStream.src = '/video_feed?t=' + Date.now();
+    }, 2000);
+
+    // ---------- Mise à jour des données ----------
     async function maj() {
       const note = document.getElementById('statusNote');
       try {
