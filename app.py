@@ -3,14 +3,21 @@
 import json
 import sqlite3
 import ssl
+import struct
 import threading
+import time
+import urllib.request
+import zlib
 
 import paho.mqtt.client as mqtt
-from flask import Flask, jsonify, render_template
+from flask import Flask, Response, jsonify, render_template
 
 import config
 
 app = Flask(__name__)
+
+# URL du flux caméra (définie dans config.py)
+CAMERA_URL = config.CAMERA_URL
 
 # État global partagé
 derniere_mesure = {}
@@ -76,6 +83,36 @@ def get_historique(limit=50):
         return []
 
 
+# ---------- Caméra : simulation ----------
+def generer_image_simulee():
+    """Génère un PNG 320x240 avec un carré qui bouge (sans Pillow)."""
+    w, h = 320, 240
+    t = int(time.time()) % 8
+    offset = t * 20
+
+    raw = b""
+    for y in range(h):
+        raw += b"\x00"
+        for x in range(w):
+            r = int(30 + 40 * (x / w))
+            g = int(40 + 50 * (y / h))
+            b = int(60 + 30 * (x / w))
+            if offset <= x < offset + 60 and 80 <= y < 140:
+                r, g, b = 220, 80, 80
+            raw += bytes([r, g, b])
+
+    def chunk(typ, data):
+        c = struct.pack(">I", len(data)) + typ + data
+        c += struct.pack(">I", zlib.crc32(typ + data) & 0xFFFFFFFF)
+        return c
+
+    png = b"\x89PNG\r\n\x1a\n"
+    png += chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+    png += chunk(b"IDAT", zlib.compress(raw))
+    png += chunk(b"IEND", b"")
+    return png
+
+
 # ---------- Routes ----------
 @app.route("/")
 def index():
@@ -97,8 +134,38 @@ def api_historique():
     return jsonify(get_historique(50))
 
 
+@app.route("/video_feed")
+def video_feed():
+    # Mode simulé
+    if not config.USE_REAL_CAMERA:
+        return Response(generer_image_simulee(), mimetype="image/png")
+
+    # Mode réel : proxy MJPEG
+    try:
+        stream = urllib.request.urlopen(CAMERA_URL, timeout=5)
+        content_type = stream.headers.get(
+            "Content-Type", "multipart/x-mixed-replace; boundary=frame"
+        )
+
+        def generate():
+            try:
+                while True:
+                    chunk = stream.read(4096)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                stream.close()
+
+        return Response(generate(), mimetype=content_type)
+    except Exception as e:
+        print("Erreur caméra:", e)
+        return "Caméra hors ligne", 503
+
+
 # ---------- Main ----------
 if __name__ == "__main__":
     threading.Thread(target=demarrer_mqtt, daemon=True).start()
-    print("Dashboard sur http://localhost:5000")
+    mode = "simulée" if not config.USE_REAL_CAMERA else "réelle"
+    print(f"Dashboard sur http://localhost:5000 (caméra {mode})")
     app.run(host="0.0.0.0", port=5000, debug=False)
